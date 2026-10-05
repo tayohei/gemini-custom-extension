@@ -1,0 +1,34 @@
+/* 1. 初期画面の入力エリア枠を画面中央の大きなカードに変更 */
+.initial-input-area-container {
+    height: 70vh !important;
+    max-height: 650px !important;
+    min-height: 400px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    justify-content: space-between !important;
+    padding: 16px 20px !important;
+    border-radius: 24px !important;
+}
+
+/* 2. 入力欄（テキストエリア）の高さをいっぱいに広げる */
+.initial-input-area-container rich-textarea,
+.initial-input-area-container .ql-editor,
+.initial-input-area-container textarea {
+    height: 100% !important;
+    max-height: none !important;
+    flex-grow: 1 !important;
+}
+
+/* 3. アイコン（操作バー）を入力カードの最下部に配置 */
+.initial-input-area-container .upload-icon,
+.initial-input-area-container .speech-icon,
+.initial-input-area-container .send-icon {
+    align-self: flex-end !important;
+}
+
+/* 4. 中央の見出し（「何から始めますか？」）を非表示にしてカード領域を確保 */
+body.lr26 main h1,
+body.lr26 main .gds-display-l,
+.initial-input-area ~ div h1 {
+    display: none !important;
+}
