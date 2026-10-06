@@ -32,24 +32,41 @@
     }, true);
 
     // ----------------------------------------------------
-    // 2. 右側プロンプト履歴サイドバー + ▼最下部移動ボタン
+    // 2. 右側サイドバー（2タブUI & 直近回答インデックス機能）
     // ----------------------------------------------------
+    let currentTab = 'prompts'; // 'prompts' または 'headings'
+
     function createOrGetSidebar() {
         let sidebar = document.getElementById('gemini-prompt-sidebar');
         if (!sidebar) {
             sidebar = document.createElement('div');
             sidebar.id = 'gemini-prompt-sidebar';
 
-            // ヘッダー
-            const title = document.createElement('div');
-            title.className = 'gemini-prompt-sidebar-title';
-            title.textContent = '📌 プロンプト目次';
-            sidebar.appendChild(title);
+            // タブヘッダー
+            const tabsContainer = document.createElement('div');
+            tabsContainer.className = 'gemini-sidebar-tabs';
 
-            // プロンプト一覧コンテナ
-            const list = document.createElement('div');
-            list.className = 'gemini-prompt-list';
-            sidebar.appendChild(list);
+            const tabPrompts = document.createElement('button');
+            tabPrompts.className = 'gemini-tab-btn active';
+            tabPrompts.id = 'gemini-tab-btn-prompts';
+            tabPrompts.innerHTML = '📌 プロンプト';
+            tabPrompts.addEventListener('click', () => switchTab('prompts'));
+
+            const tabHeadings = document.createElement('button');
+            tabHeadings.className = 'gemini-tab-btn';
+            tabHeadings.id = 'gemini-tab-btn-headings';
+            tabHeadings.innerHTML = '📖 回答見出し';
+            tabHeadings.addEventListener('click', () => switchTab('headings'));
+
+            tabsContainer.appendChild(tabPrompts);
+            tabsContainer.appendChild(tabHeadings);
+            sidebar.appendChild(tabsContainer);
+
+            // コンテンツ領域
+            const content = document.createElement('div');
+            content.className = 'gemini-sidebar-content';
+            content.id = 'gemini-sidebar-content';
+            sidebar.appendChild(content);
 
             // フッター（▼最下部ボタン）
             const footer = document.createElement('div');
@@ -59,25 +76,21 @@
             bottomBtn.className = 'gemini-scroll-bottom-btn';
             bottomBtn.innerHTML = '▼ 最下部へ';
 
-            // 最下部へのスクロール処理（複数アプローチで確実に実行）
             bottomBtn.addEventListener('click', () => {
-                // 1. チャット履歴のスクロールコンテナを特定してスクロール位置を最下部に指定
-                const scrollContainers = document.querySelectorAll('#chat-history, .chat-history-scroll-container, infinite-scroller');
-                scrollContainers.forEach(container => {
-                    container.scrollTo({
-                        top: container.scrollHeight,
-                        behavior: 'smooth'
-                    });
-                });
-
-                // 2. チャット履歴内の最後の要素を取得してスクロール位置を追従させる
-                const historyContainer = document.querySelector('#chat-history, .chat-history-scroll-container');
-                if (historyContainer) {
-                    const lastChild = historyContainer.lastElementChild || historyContainer.querySelector('infinite-scroller')?.lastElementChild;
-                    if (lastChild) {
-                        lastChild.scrollIntoView({ behavior: 'smooth', block: 'end' });
-                    }
+                const targetElements = document.querySelectorAll('model-response, response-element, user-query, .user-query-container, hallucination-disclaimer, .conversation-container');
+                if (targetElements.length > 0) {
+                    const lastEl = targetElements[targetElements.length - 1];
+                    lastEl.scrollIntoView({ behavior: 'smooth', block: 'end' });
                 }
+
+                const scrollContainers = document.querySelectorAll('#chat-history, .chat-history-scroll-container, infinite-scroller, main');
+                scrollContainers.forEach(container => {
+                    if (container) {
+                        container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+                        container.scrollTop = container.scrollHeight;
+                    }
+                });
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
             });
 
             footer.appendChild(bottomBtn);
@@ -88,7 +101,22 @@
         return sidebar;
     }
 
-    // 画面上の全プロンプト要素を最新の状態で再取得するヘルパー関数
+    function switchTab(tabName) {
+        currentTab = tabName;
+        const btnPrompts = document.getElementById('gemini-tab-btn-prompts');
+        const btnHeadings = document.getElementById('gemini-tab-btn-headings');
+
+        if (tabName === 'prompts') {
+            if (btnPrompts) btnPrompts.classList.add('active');
+            if (btnHeadings) btnHeadings.classList.remove('active');
+        } else {
+            if (btnPrompts) btnPrompts.classList.remove('active');
+            if (btnHeadings) btnHeadings.classList.add('active');
+        }
+        renderSidebarContent();
+    }
+
+    // 全プロンプト要素を取得
     function getTopLevelPromptElements() {
         let rawQueries = Array.from(document.querySelectorAll('user-query'));
         if (rawQueries.length === 0) {
@@ -99,77 +127,153 @@
         });
     }
 
-    let lastPromptHash = '';
+    // 直近（最後）のプロンプト以降にある回答の見出し(H1〜H6)要素を網羅的に取得
+    function getLastResponseHeadings() {
+        const userQueries = getTopLevelPromptElements();
+        const lastUserQuery = userQueries.length > 0 ? userQueries[userQueries.length - 1] : null;
 
-    function updatePromptSidebar() {
-        const topLevelQueries = getTopLevelPromptElements();
+        const allResponseBlocks = Array.from(document.querySelectorAll('message-content, model-response, response-element, .message-content'));
 
-        const promptList = [];
-        topLevelQueries.forEach((queryEl, index) => {
-            let rawText = queryEl.textContent.trim();
+        let targetBlocks = [];
+        if (lastUserQuery) {
+            targetBlocks = allResponseBlocks.filter(el => {
+                return (lastUserQuery.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING);
+            });
+        }
 
-            let cleanedText = rawText
-                .replace(/^(MHTML|Google Gemini|あなたのプロンプト|\s)+/gi, '')
-                .replace(/^(Google Gemini|あなたのプロンプト|\s)+/gi, '')
-                .replace(/[\r\n]+/g, ' ')
-                .replace(/\s+/g, ' ')
-                .trim();
+        if (targetBlocks.length === 0 && allResponseBlocks.length > 0) {
+            targetBlocks = [allResponseBlocks[allResponseBlocks.length - 1]];
+        }
 
-            if (cleanedText) {
-                let displayHtmlText = cleanedText;
-                if (cleanedText.length > 32) {
-                    displayHtmlText = cleanedText.slice(0, 32) + '…';
+        if (targetBlocks.length === 0) return [];
+
+        const headingElements = [];
+        const seenTexts = new Set();
+
+        targetBlocks.forEach(block => {
+            // H1〜H6 まで対応
+            const headings = block.querySelectorAll('h1, h2, h3, h4, h5, h6');
+            headings.forEach(h => {
+                const text = h.textContent.trim();
+                if (text && !seenTexts.has(text)) {
+                    seenTexts.add(text);
+                    headingElements.push(h);
                 }
-
-                promptList.push({
-                    index: index,
-                    fullText: cleanedText,
-                    displayText: displayHtmlText
-                });
-            }
+            });
         });
 
-        const currentHash = promptList.map(p => p.fullText).join('||');
-        if (currentHash === lastPromptHash) {
+        return headingElements;
+    }
+
+    let lastHash = '';
+
+    function renderSidebarContent() {
+        const sidebar = createOrGetSidebar();
+        const contentContainer = document.getElementById('gemini-sidebar-content');
+        if (!contentContainer) return;
+
+        const topLevelQueries = getTopLevelPromptElements();
+        const headingElements = getLastResponseHeadings();
+
+        // 状態変化判定ハッシュ
+        const hashStr = currentTab + '_' + topLevelQueries.length + '_' + headingElements.map(h => h.textContent).join('|');
+
+        if (hashStr === lastHash && contentContainer.children.length > 0) {
             return;
         }
-        lastPromptHash = currentHash;
+        lastHash = hashStr;
 
-        const sidebar = createOrGetSidebar();
-        const listContainer = sidebar.querySelector('.gemini-prompt-list');
+        contentContainer.innerHTML = '';
 
-        listContainer.innerHTML = '';
-
-        if (promptList.length === 0) {
+        if (topLevelQueries.length === 0 && headingElements.length === 0) {
             sidebar.style.display = 'none';
             return;
         }
-
         sidebar.style.display = 'flex';
 
-        promptList.forEach(prompt => {
-            const item = document.createElement('div');
-            item.className = 'gemini-prompt-item';
-            item.textContent = prompt.displayText;
-            item.title = prompt.fullText;
+        // ----------------------------------------------------
+        // タブ①: プロンプト目次
+        // ----------------------------------------------------
+        if (currentTab === 'prompts') {
+            const promptList = [];
+            topLevelQueries.forEach((queryEl, index) => {
+                let rawText = queryEl.textContent.trim();
+                let cleanedText = rawText
+                    .replace(/^(MHTML|Google Gemini|あなたのプロンプト|\s)+/gi, '')
+                    .replace(/^(Google Gemini|あなたのプロンプト|\s)+/gi, '')
+                    .replace(/[\r\n]+/g, ' ')
+                    .replace(/\s+/g, ' ')
+                    .trim();
 
-            item.addEventListener('click', () => {
-                const latestElements = getTopLevelPromptElements();
-                const targetEl = latestElements[prompt.index];
-                if (targetEl) {
-                    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                if (cleanedText) {
+                    let displayText = cleanedText.length > 28 ? cleanedText.slice(0, 28) + '…' : cleanedText;
+                    promptList.push({
+                        index: index,
+                        fullText: cleanedText,
+                        displayText: displayText
+                    });
                 }
             });
 
-            listContainer.appendChild(item);
-        });
+            if (promptList.length === 0) {
+                contentContainer.innerHTML = '<div class="gemini-empty-msg">プロンプトがありません</div>';
+                return;
+            }
+
+            promptList.forEach(prompt => {
+                const item = document.createElement('div');
+                item.className = 'gemini-prompt-item';
+                item.textContent = prompt.displayText;
+                item.title = prompt.fullText;
+
+                item.addEventListener('click', () => {
+                    const latestElements = getTopLevelPromptElements();
+                    const targetEl = latestElements[prompt.index];
+                    if (targetEl) {
+                        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                });
+
+                contentContainer.appendChild(item);
+            });
+        }
+        // ----------------------------------------------------
+        // タブ②: 直近の回答の見出しインデックス (H1〜H6)
+        // ----------------------------------------------------
+        else if (currentTab === 'headings') {
+            if (headingElements.length === 0) {
+                contentContainer.innerHTML = '<div class="gemini-empty-msg">見出し（H1〜H6）はありません</div>';
+                return;
+            }
+
+            headingElements.forEach(headingEl => {
+                let rawText = headingEl.textContent.trim();
+                let cleanedText = rawText.replace(/[\r\n]+/g, ' ').replace(/\s+/g, ' ').trim();
+
+                if (cleanedText) {
+                    let displayText = cleanedText.length > 25 ? cleanedText.slice(0, 25) + '…' : cleanedText;
+                    const tagLevel = headingEl.tagName.toLowerCase(); // 'h1' 〜 'h6'
+
+                    const item = document.createElement('div');
+                    item.className = `gemini-heading-item gemini-heading-${tagLevel}`;
+                    item.textContent = displayText;
+                    item.title = cleanedText;
+
+                    item.addEventListener('click', () => {
+                        headingEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    });
+
+                    contentContainer.appendChild(item);
+                }
+            });
+        }
     }
 
     // デバウンス処理
     let updateTimer = null;
     function debouncedUpdate() {
         if (updateTimer) clearTimeout(updateTimer);
-        updateTimer = setTimeout(updatePromptSidebar, 300);
+        updateTimer = setTimeout(renderSidebarContent, 300);
     }
 
     // DOM監視
@@ -185,5 +289,5 @@
         subtree: true
     });
 
-    setTimeout(updatePromptSidebar, 1000);
+    setTimeout(renderSidebarContent, 1000);
 })();
