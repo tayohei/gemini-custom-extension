@@ -151,7 +151,6 @@
         const seenTexts = new Set();
 
         targetBlocks.forEach(block => {
-            // H1〜H6 まで対応
             const headings = block.querySelectorAll('h1, h2, h3, h4, h5, h6');
             headings.forEach(h => {
                 const text = h.textContent.trim();
@@ -230,7 +229,8 @@
                     const latestElements = getTopLevelPromptElements();
                     const targetEl = latestElements[prompt.index];
                     if (targetEl) {
-                        targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // 画面上部にスクロール
+                        targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
                 });
 
@@ -252,7 +252,7 @@
 
                 if (cleanedText) {
                     let displayText = cleanedText.length > 25 ? cleanedText.slice(0, 25) + '…' : cleanedText;
-                    const tagLevel = headingEl.tagName.toLowerCase(); // 'h1' 〜 'h6'
+                    const tagLevel = headingEl.tagName.toLowerCase();
 
                     const item = document.createElement('div');
                     item.className = `gemini-heading-item gemini-heading-${tagLevel}`;
@@ -260,7 +260,8 @@
                     item.title = cleanedText;
 
                     item.addEventListener('click', () => {
-                        headingEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // 画面上部（block: 'start'）にスクロール
+                        headingEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     });
 
                     contentContainer.appendChild(item);
