@@ -1,17 +1,23 @@
-/* 1. 中央の見出し（「どんなことに取り組みましょうか？」など）を非表示にして領域確保 */
+/* ========================================================
+   1. 初期画面（is-zero-state）限定のスタイル
+======================================================== */
 modular-zero-state .top-section-container,
 .zero-state-container .top-section-container {
     display: none !important;
 }
 
-/* 2. 入力エリア本体 (Quill Editor) に最小高さを与えてカード状に広げる */
-rich-textarea .ql-editor {
-    min-height: 300px !important;
-    max-height: 50vh !important;
+.input-area-container.is-zero-state {
+    max-width: 80vw !important;
+    width: 80vw !important;
+    height: auto !important;
+}
+
+.input-area-container.is-zero-state rich-textarea .ql-editor {
+    min-height: 45vh !important;
+    max-height: 60vh !important;
     overflow-y: auto !important;
 }
 
-/* 3. 外枠コンテナの固定高さを解除し、エディタの高さに合わせて自動調整 */
 .input-area-container {
     height: auto !important;
     max-height: none !important;
@@ -25,4 +31,124 @@ rich-textarea .ql-editor {
 .input-area-container rich-textarea {
     height: auto !important;
     max-height: none !important;
+}
+
+/* ========================================================
+   2. 右側プロンプト目次サイドバー
+======================================================== */
+#gemini-prompt-sidebar {
+    position: fixed;
+    top: 70px;
+    right: 16px;
+    width: 220px;
+    max-height: calc(100vh - 120px);
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid #e3e3e3;
+    border-radius: 16px;
+    padding: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 12px;
+}
+
+/* ダークモード対応 */
+.dark-theme #gemini-prompt-sidebar {
+    background: rgba(30, 31, 32, 0.92);
+    border-color: #444746;
+    color: #e3e3e3;
+}
+
+/* ヘッダー */
+.gemini-prompt-sidebar-title {
+    font-weight: bold;
+    font-size: 11px;
+    color: #707070;
+    padding-bottom: 6px;
+    border-bottom: 1px solid #eee;
+    flex-shrink: 0;
+}
+
+.dark-theme .gemini-prompt-sidebar-title {
+    color: #aaa;
+    border-bottom-color: #444;
+}
+
+/* プロンプト一覧コンテナ（ここだけスクロール） */
+.gemini-prompt-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    overflow-y: auto;
+    max-height: calc(100vh - 210px);
+}
+
+/* プロンプト履歴アイテム */
+.gemini-prompt-item {
+    padding: 8px 10px;
+    background: #f0f4f9;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    color: #1f1f1f;
+    font-size: 12px;
+    line-height: 1.4;
+    word-break: break-all;
+    white-space: normal;
+}
+
+.dark-theme .gemini-prompt-item {
+    background: #282a2c;
+    color: #e3e3e3;
+}
+
+.gemini-prompt-item:hover {
+    background: #d3e3fd;
+    transform: translateX(-2px);
+}
+
+.dark-theme .gemini-prompt-item:hover {
+    background: #004a77;
+}
+
+/* フッター（最下部スクロールボタン） */
+.gemini-prompt-footer {
+    padding-top: 6px;
+    border-top: 1px solid #eee;
+    flex-shrink: 0;
+}
+
+.dark-theme .gemini-prompt-footer {
+    border-top-color: #444;
+}
+
+.gemini-scroll-bottom-btn {
+    width: 100%;
+    padding: 6px;
+    background: #f0f4f9;
+    border: 1px solid #d3e3fd;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: bold;
+    color: #0b57d0;
+    text-align: center;
+    transition: background 0.2s;
+}
+
+.dark-theme .gemini-scroll-bottom-btn {
+    background: #282a2c;
+    border-color: #004a77;
+    color: #a8c7fa;
+}
+
+.gemini-scroll-bottom-btn:hover {
+    background: #d3e3fd;
+}
+
+.dark-theme .gemini-scroll-bottom-btn:hover {
+    background: #004a77;
 }
