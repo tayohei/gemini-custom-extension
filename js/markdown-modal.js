@@ -67,7 +67,11 @@
 
             const modal = document.createElement('div');
             modal.id = 'gemini-md-modal';
-            modal.addEventListener('click', (e) => e.stopPropagation());
+            modal.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const panel = document.getElementById('gemini-md-template-panel');
+                if (panel && !e.target.closest('.gemini-md-template-panel')) panel.style.display = 'none';
+            });
 
             // ヘッダー
             const header = document.createElement('div');
@@ -104,7 +108,9 @@
                 { label: '1. リスト', prefix: '1. ', suffix: '', def: '項目' },
                 { label: '“ 引用', prefix: '> ', suffix: '', def: '引用文' },
                 { type: 'divider' },
-                { label: '</> コード', prefix: '```\n', suffix: '\n```', def: '// code here' }
+                { label: '</> コード', prefix: '```\n', suffix: '\n```', def: '// code here' },
+                { label: '🔗 リンク', prefix: '[', suffix: '](https://)', def: 'リンク文字' },
+                { label: '⊞ 表', insertBlock: '| 見出し1 | 見出し2 |\n| --- | --- |\n| 内容 | 内容 |\n' }
             ];
 
             tools.forEach(tool => {
@@ -119,11 +125,15 @@
                     btn.type = 'button';
                     btn.addEventListener('click', () => {
                         const textarea = document.getElementById('gemini-md-textarea-input');
-                        if (textarea) insertFormatting(textarea, tool.prefix, tool.suffix, tool.def);
+                        if (!textarea) return;
+                        if (tool.insertBlock) insertBlock(textarea, tool.insertBlock);
+                        else insertFormatting(textarea, tool.prefix, tool.suffix, tool.def);
                     });
                     toolbar.appendChild(btn);
                 }
             });
+
+            toolbar.appendChild(createTemplateMenu());
 
             modal.appendChild(toolbar);
 
@@ -150,6 +160,7 @@
 
             textarea.addEventListener('input', () => {
                 syncTextToHighlight();
+                scheduleDraftSave();
             });
 
             textarea.addEventListener('keydown', (e) => {
@@ -169,15 +180,7 @@
 
                 if (e.key === 'Tab') {
                     e.preventDefault();
-                    const start = textarea.selectionStart;
-                    const end = textarea.selectionEnd;
-                    const val = textarea.value;
-
-                    if (!e.shiftKey) {
-                        replaceRange(textarea, start, end, '  ');
-                    } else if (val.substring(start - 2, start) === '  ') {
-                        replaceRange(textarea, start - 2, start, '');
-                    }
+                    indentSelection(textarea, e.shiftKey);
                     return;
                 }
 
@@ -267,6 +270,144 @@
         return overlay;
     }
 
+    // Tab / Shift+Tab: 複数行選択時は行単位でインデント・解除する
+    function indentSelection(textarea, outdent) {
+        const val = textarea.value;
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const multiLine = val.substring(start, end).includes('\n');
+
+        if (!outdent && !multiLine) {
+            replaceRange(textarea, start, end, '  ');
+            return;
+        }
+
+        const blockStart = val.lastIndexOf('\n', start - 1) + 1;
+        let blockEnd = val.indexOf('\n', end);
+        if (blockEnd === -1) blockEnd = val.length;
+
+        const lines = val.substring(blockStart, blockEnd).split('\n');
+        const changed = lines.map(line => outdent ? line.replace(/^( {1,2}|\t)/, '') : '  ' + line);
+        const newBlock = changed.join('\n');
+
+        if (newBlock === val.substring(blockStart, blockEnd)) return;
+        replaceRange(textarea, blockStart, blockEnd, newBlock, blockStart, blockStart + newBlock.length);
+    }
+
+    // 表などのブロックは新しい行から挿入する
+    function insertBlock(textarea, block) {
+        const start = textarea.selectionStart;
+        const end = textarea.selectionEnd;
+        const needsBreak = start > 0 && textarea.value[start - 1] !== '\n';
+        replaceRange(textarea, start, end, (needsBreak ? '\n' : '') + block);
+    }
+
+    // ---------- テンプレート ----------
+    const TEMPLATE_KEY = 'mdTemplates';
+    const DEFAULT_TEMPLATES = [
+        { name: '要約', text: '以下の内容を、要点を箇条書きで3〜5行に要約してください。\n\n' },
+        { name: 'コードレビュー', text: '以下のコードをレビューし、バグ・可読性・性能の観点で改善点を指摘してください。\n\n```\n\n```\n' },
+        { name: '翻訳(日→英)', text: '以下の文章を自然な英語に翻訳してください。\n\n' }
+    ];
+
+    async function loadTemplates() {
+        return window.GeminiExt.storageGet(TEMPLATE_KEY, DEFAULT_TEMPLATES);
+    }
+
+    function createTemplateMenu() {
+        const wrap = document.createElement('div');
+        wrap.className = 'gemini-md-template-wrap';
+
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'gemini-md-tool-btn';
+        toggle.textContent = '📄 テンプレート ▾';
+
+        const panel = document.createElement('div');
+        panel.className = 'gemini-md-template-panel';
+        panel.id = 'gemini-md-template-panel';
+
+        async function renderPanel() {
+            const templates = await loadTemplates();
+            panel.innerHTML = '';
+
+            templates.forEach(tpl => {
+                const row = document.createElement('div');
+                row.className = 'gemini-md-template-row';
+
+                const name = document.createElement('span');
+                name.className = 'gemini-md-template-name';
+                name.textContent = tpl.name;
+                name.title = tpl.text;
+                name.addEventListener('click', () => {
+                    const textarea = document.getElementById('gemini-md-textarea-input');
+                    if (textarea) replaceRange(textarea, textarea.selectionStart, textarea.selectionEnd, tpl.text);
+                    panel.style.display = 'none';
+                });
+
+                const del = document.createElement('span');
+                del.className = 'gemini-md-template-del';
+                del.textContent = '×';
+                del.title = '削除';
+                del.addEventListener('click', async () => {
+                    if (!confirm(`テンプレート「${tpl.name}」を削除しますか？`)) return;
+                    await window.GeminiExt.storageSet(TEMPLATE_KEY, templates.filter(t => t !== tpl));
+                    renderPanel();
+                });
+
+                row.appendChild(name);
+                row.appendChild(del);
+                panel.appendChild(row);
+            });
+
+            const add = document.createElement('div');
+            add.className = 'gemini-md-template-add';
+            add.textContent = '＋ 選択範囲（なければ全文）を保存';
+            add.addEventListener('click', async () => {
+                const textarea = document.getElementById('gemini-md-textarea-input');
+                if (!textarea) return;
+                const selected = textarea.value.substring(textarea.selectionStart, textarea.selectionEnd);
+                const text = selected || textarea.value;
+                if (!text.trim()) return window.GeminiExt.toast('保存する内容がありません', true);
+
+                const name = (prompt('テンプレート名を入力してください') || '').trim();
+                if (!name) return;
+                const next = templates.filter(t => t.name !== name).concat({ name, text });
+                await window.GeminiExt.storageSet(TEMPLATE_KEY, next);
+                window.GeminiExt.toast(`📄 テンプレート「${name}」を保存しました`);
+                renderPanel();
+            });
+            panel.appendChild(add);
+        }
+
+        toggle.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (panel.style.display === 'block') {
+                panel.style.display = 'none';
+                return;
+            }
+            await renderPanel();
+            panel.style.display = 'block';
+        });
+
+        wrap.appendChild(toggle);
+        wrap.appendChild(panel);
+        return wrap;
+    }
+
+    // ---------- 下書きの永続化 ----------
+    const DRAFT_KEY = 'mdDraft';
+    let draftTimer = null;
+    function scheduleDraftSave() {
+        clearTimeout(draftTimer);
+        draftTimer = setTimeout(saveDraftNow, 600);
+    }
+    function saveDraftNow() {
+        clearTimeout(draftTimer);
+        const textarea = document.getElementById('gemini-md-textarea-input');
+        if (textarea) window.GeminiExt.storageSet(DRAFT_KEY, textarea.value);
+    }
+
     // 範囲を置換する。execCommand経由にしてブラウザのUndo履歴を保つ
     function replaceRange(textarea, start, end, text, selStart, selEnd) {
         textarea.focus();
@@ -299,7 +440,10 @@
 
             if (counter) {
                 const lines = text ? text.split('\n').length : 1;
-                counter.textContent = `文字数: ${text.length} | 行数: ${lines}`;
+                // 日本語などの全角文字は約1文字=1トークン、それ以外は約4文字=1トークンで概算
+                const wide = (text.match(/[\u3000-\u9fff\uff00-\uffef]/g) || []).length;
+                const tokens = Math.ceil(wide + (text.length - wide) / 4);
+                counter.textContent = `文字数: ${text.length} | 行数: ${lines} | 約${tokens}トークン（目安）`;
             }
         }
     }
@@ -320,29 +464,23 @@
         }
     }
 
-    function openMarkdownModal() {
+    async function openMarkdownModal() {
         const overlay = createOrGetMarkdownModal();
         const textarea = document.getElementById('gemini-md-textarea-input');
 
-        const geminiEditor = document.querySelector('rich-textarea .ql-editor');
-        if (geminiEditor && textarea) {
-            const current = geminiEditor.innerText.trim();
-            // Gemini側が空で、閉じる前の下書きがあれば復元する
-            textarea.value = current || draft;
-        }
-
         overlay.style.display = 'flex';
-        if (textarea) {
-            textarea.focus();
-            syncTextToHighlight();
-        }
+        if (!textarea) return;
+
+        const geminiEditor = document.querySelector('rich-textarea .ql-editor');
+        const current = geminiEditor ? geminiEditor.innerText.trim() : '';
+        // Gemini側が空なら、前回の下書き（閉じた/リロード前の内容）を復元する
+        textarea.value = current || await window.GeminiExt.storageGet(DRAFT_KEY, '');
+        textarea.focus();
+        syncTextToHighlight();
     }
 
-    let draft = '';
-
     function closeMarkdownModal() {
-        const textarea = document.getElementById('gemini-md-textarea-input');
-        if (textarea) draft = textarea.value;
+        saveDraftNow();
         const overlay = document.getElementById('gemini-md-modal-overlay');
         if (overlay) {
             overlay.style.display = 'none';
@@ -374,7 +512,8 @@
             geminiEditor.dispatchEvent(new Event('change', { bubbles: true }));
 
             closeMarkdownModal();
-            draft = '';
+            // 反映済みの内容は下書きから消す
+            window.GeminiExt.storageSet(DRAFT_KEY, '');
 
             if (shouldSend) {
                 setTimeout(() => {
