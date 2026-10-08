@@ -32,9 +32,56 @@
     }, true);
 
     // ----------------------------------------------------
-    // 2. 右側サイドバー（2タブUI & 直近回答インデックス機能）
+    // 2. コードダウンロードボタンの横取り（「名前を付けて保存」強制）
     // ----------------------------------------------------
-    let currentTab = 'prompts'; // 'prompts' または 'headings'
+    document.addEventListener('click', function (e) {
+        // コードブロック内のダウンロードボタンか判定
+        const downloadBtn = e.target.closest('code-block button[aria-label*="ダウンロード"], code-block button[aria-label*="Download"], code-block .download-button');
+        if (!downloadBtn) return;
+
+        const codeBlock = downloadBtn.closest('code-block');
+        if (!codeBlock) return;
+
+        // Gemini標準の即時ダウンロードをキャンセル
+        e.preventDefault();
+        e.stopPropagation();
+
+        // コード本文を取得
+        const codeElement = codeBlock.querySelector('code, .code-container');
+        const codeText = codeElement ? codeElement.innerText : '';
+        if (!codeText) return;
+
+        // 言語名を取得（例: JavaScript, Python, HTML 等）
+        const langHeader = codeBlock.querySelector('.code-block-decoration, .filename, .lang-name');
+        let lang = langHeader ? langHeader.textContent.trim().toLowerCase() : '';
+
+        // 言語に応じたデフォルト拡張子の決定
+        let ext = 'txt';
+        if (lang.includes('javascript') || lang.includes('js')) ext = 'js';
+        else if (lang.includes('python') || lang.includes('py')) ext = 'py';
+        else if (lang.includes('html')) ext = 'html';
+        else if (lang.includes('css')) ext = 'css';
+        else if (lang.includes('json')) ext = 'json';
+        else if (lang.includes('typescript') || lang.includes('ts')) ext = 'ts';
+        else if (lang.includes('sh') || lang.includes('bash')) ext = 'sh';
+        else if (lang.includes('sql')) ext = 'sql';
+
+        const defaultFilename = `code_snippet.${ext}`;
+
+        // Data URL を生成して background.js へ送信
+        const blobUrl = 'data:text/plain;charset=utf-8,' + encodeURIComponent(codeText);
+
+        chrome.runtime.sendMessage({
+            action: 'download_code',
+            url: blobUrl,
+            filename: defaultFilename
+        });
+    }, true); // キャプチャフェーズで処理して標準挙動を確実にブロック
+
+    // ----------------------------------------------------
+    // 3. 右側サイドバー（2タブUI & 直近回答インデックス機能）
+    // ----------------------------------------------------
+    let currentTab = 'prompts';
 
     function createOrGetSidebar() {
         let sidebar = document.getElementById('gemini-prompt-sidebar');
@@ -42,7 +89,6 @@
             sidebar = document.createElement('div');
             sidebar.id = 'gemini-prompt-sidebar';
 
-            // タブヘッダー
             const tabsContainer = document.createElement('div');
             tabsContainer.className = 'gemini-sidebar-tabs';
 
@@ -62,13 +108,11 @@
             tabsContainer.appendChild(tabHeadings);
             sidebar.appendChild(tabsContainer);
 
-            // コンテンツ領域
             const content = document.createElement('div');
             content.className = 'gemini-sidebar-content';
             content.id = 'gemini-sidebar-content';
             sidebar.appendChild(content);
 
-            // フッター（▼最下部ボタン）
             const footer = document.createElement('div');
             footer.className = 'gemini-prompt-footer';
 
@@ -116,7 +160,6 @@
         renderSidebarContent();
     }
 
-    // 全プロンプト要素を取得
     function getTopLevelPromptElements() {
         let rawQueries = Array.from(document.querySelectorAll('user-query'));
         if (rawQueries.length === 0) {
@@ -127,7 +170,6 @@
         });
     }
 
-    // 直近（最後）のプロンプト以降にある回答の見出し(H1〜H6)要素を網羅的に取得
     function getLastResponseHeadings() {
         const userQueries = getTopLevelPromptElements();
         const lastUserQuery = userQueries.length > 0 ? userQueries[userQueries.length - 1] : null;
@@ -174,7 +216,6 @@
         const topLevelQueries = getTopLevelPromptElements();
         const headingElements = getLastResponseHeadings();
 
-        // 状態変化判定ハッシュ
         const hashStr = currentTab + '_' + topLevelQueries.length + '_' + headingElements.map(h => h.textContent).join('|');
 
         if (hashStr === lastHash && contentContainer.children.length > 0) {
@@ -190,9 +231,6 @@
         }
         sidebar.style.display = 'flex';
 
-        // ----------------------------------------------------
-        // タブ①: プロンプト目次
-        // ----------------------------------------------------
         if (currentTab === 'prompts') {
             const promptList = [];
             topLevelQueries.forEach((queryEl, index) => {
@@ -229,7 +267,6 @@
                     const latestElements = getTopLevelPromptElements();
                     const targetEl = latestElements[prompt.index];
                     if (targetEl) {
-                        // 画面上部にスクロール
                         targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     }
                 });
@@ -237,9 +274,6 @@
                 contentContainer.appendChild(item);
             });
         }
-        // ----------------------------------------------------
-        // タブ②: 直近の回答の見出しインデックス (H1〜H6)
-        // ----------------------------------------------------
         else if (currentTab === 'headings') {
             if (headingElements.length === 0) {
                 contentContainer.innerHTML = '<div class="gemini-empty-msg">見出し（H1〜H6）はありません</div>';
@@ -260,7 +294,6 @@
                     item.title = cleanedText;
 
                     item.addEventListener('click', () => {
-                        // 画面上部（block: 'start'）にスクロール
                         headingEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
                     });
 
@@ -270,14 +303,12 @@
         }
     }
 
-    // デバウンス処理
     let updateTimer = null;
     function debouncedUpdate() {
         if (updateTimer) clearTimeout(updateTimer);
         updateTimer = setTimeout(renderSidebarContent, 300);
     }
 
-    // DOM監視
     const observer = new MutationObserver((mutations) => {
         const isOnlySidebarChange = mutations.every(m => m.target.closest('#gemini-prompt-sidebar'));
         if (isOnlySidebarChange) return;
