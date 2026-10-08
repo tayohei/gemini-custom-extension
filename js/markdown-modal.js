@@ -280,7 +280,16 @@
         return overlay;
     }
 
+    let syncFrame = 0;
     function syncTextToHighlight() {
+        if (syncFrame) return;
+        syncFrame = requestAnimationFrame(() => {
+            syncFrame = 0;
+            doSyncTextToHighlight();
+        });
+    }
+
+    function doSyncTextToHighlight() {
         const textarea = document.getElementById('gemini-md-textarea-input');
         const previewLayer = document.getElementById('gemini-md-preview-layer');
         const counter = document.getElementById('gemini-md-counter-text');
@@ -398,8 +407,15 @@
         anchor.parentNode.insertBefore(btn, anchor.nextSibling);
     }
 
+    // DOM変更のたびに走らないよう、フレームごとに1回へまとめる
+    let injectScheduled = false;
     const observer = new MutationObserver(() => {
-        injectMarkdownButton();
+        if (injectScheduled || document.getElementById('gemini-md-trigger-btn')) return;
+        injectScheduled = true;
+        requestAnimationFrame(() => {
+            injectScheduled = false;
+            injectMarkdownButton();
+        });
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
