@@ -57,11 +57,62 @@
             });
 
             footer.appendChild(bottomBtn);
+
+            const actionRow = document.createElement('div');
+            actionRow.className = 'gemini-footer-row';
+            actionRow.appendChild(makeFooterButton('⬇ MD保存', '最新の回答をMarkdownファイルとして保存', saveLatestResponse));
+            actionRow.appendChild(makeFooterButton('📋 コピー', '最新の回答をMarkdownでコピー', copyLatestResponse));
+            actionRow.appendChild(makeFooterButton('📁', 'コード/回答の保存先フォルダを変更', () => window.GeminiExt.changeSaveDirectory()));
+            footer.appendChild(actionRow);
             sidebar.appendChild(footer);
 
             document.body.appendChild(sidebar);
         }
         return sidebar;
+    }
+
+    function makeFooterButton(label, title, handler) {
+        const btn = document.createElement('button');
+        btn.className = 'gemini-footer-btn';
+        btn.textContent = label;
+        btn.title = title;
+        btn.type = 'button';
+        btn.addEventListener('click', handler);
+        return btn;
+    }
+
+    function getLatestResponseMarkdown() {
+        const responses = document.querySelectorAll('chat-window model-response');
+        const last = responses[responses.length - 1];
+        if (!last) return null;
+        const body = last.querySelector('message-content') || last;
+        return window.GeminiExt.htmlToMarkdown(body);
+    }
+
+    function buildFilename(markdown) {
+        const firstLine = (markdown.split('\n').find(l => l.trim()) || 'gemini').replace(/^#+\s*/, '');
+        const title = firstLine.replace(/[\\/:*?"<>|\s]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40) || 'gemini';
+        const d = new Date();
+        const pad = n => String(n).padStart(2, '0');
+        const stamp = `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`;
+        return `${title}_${stamp}.md`;
+    }
+
+    function saveLatestResponse(e) {
+        const md = getLatestResponseMarkdown();
+        if (!md) return window.GeminiExt.toast('保存できる回答がありません', true);
+        window.GeminiExt.saveTextFile(buildFilename(md), md, { mime: 'text/markdown', forcePick: e.shiftKey });
+    }
+
+    async function copyLatestResponse() {
+        const md = getLatestResponseMarkdown();
+        if (!md) return window.GeminiExt.toast('コピーできる回答がありません', true);
+        try {
+            await navigator.clipboard.writeText(md);
+            window.GeminiExt.toast('📋 回答をMarkdownでコピーしました');
+        } catch (e) {
+            window.GeminiExt.toast('コピーに失敗しました', true);
+        }
     }
 
     function switchTab(tabName) {
@@ -132,6 +183,10 @@
     }
 
     let lastHash = '';
+    // 現在位置ハイライト用: 描画した項目と、対応する本文側の要素
+    let itemRefs = [];
+    let refElements = [];
+    let activeIndex = -1;
 
     function renderSidebarContent() {
         const sidebar = createOrGetSidebar();
@@ -149,6 +204,9 @@
         lastHash = hashStr;
 
         contentContainer.innerHTML = '';
+        itemRefs = [];
+        refElements = [];
+        activeIndex = -1;
 
         if (topLevelQueries.length === 0 && headingElements.length === 0) {
             sidebar.style.display = 'none';
@@ -196,6 +254,8 @@
                     }
                 });
 
+                itemRefs.push(item);
+                refElements.push(topLevelQueries[prompt.index]);
                 contentContainer.appendChild(item);
             });
         }
@@ -226,11 +286,43 @@
                         }
                     });
 
+                    itemRefs.push(item);
+                    refElements.push(headingEl);
                     contentContainer.appendChild(item);
                 }
             });
         }
+        updateActiveItem();
     }
+
+    // 画面上端付近にある項目を「現在位置」として強調する
+    const ACTIVE_OFFSET = 140;
+    function updateActiveItem() {
+        if (itemRefs.length === 0) return;
+
+        let next = 0;
+        for (let i = 0; i < refElements.length; i++) {
+            const el = refElements[i];
+            if (!el || !el.isConnected) continue;
+            if (el.getBoundingClientRect().top <= ACTIVE_OFFSET) next = i;
+            else break;
+        }
+        if (next === activeIndex) return;
+
+        if (itemRefs[activeIndex]) itemRefs[activeIndex].classList.remove('active');
+        activeIndex = next;
+        itemRefs[next].classList.add('active');
+        itemRefs[next].scrollIntoView({ block: 'nearest' });
+    }
+
+    let scrollFrame = 0;
+    document.addEventListener('scroll', () => {
+        if (scrollFrame || document.hidden) return;
+        scrollFrame = requestAnimationFrame(() => {
+            scrollFrame = 0;
+            updateActiveItem();
+        });
+    }, { capture: true, passive: true });
 
     let updateTimer = null;
     function debouncedUpdate() {

@@ -462,3 +462,123 @@ user-query, .user-query-container {
 .gemini-md-btn-send:hover {
     background: #1d4ed8;
 }
+
+/* ===== トースト通知 ===== */
+#gemini-ext-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #202124;
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 2147483647;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s, transform 0.2s;
+    max-width: 80vw;
+}
+#gemini-ext-toast.is-visible {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+#gemini-ext-toast.is-error {
+    background: #b3261e;
+}
+
+/* ===== サイドバー: 現在位置のハイライト / フッターボタン ===== */
+.gemini-prompt-item.active,
+.gemini-heading-item.active {
+    background: #d3e3fd;
+    color: #0b57d0;
+    font-weight: bold;
+}
+.dark-theme .gemini-prompt-item.active,
+.dark-theme .gemini-heading-item.active {
+    background: #004a77;
+    color: #c2e7ff;
+}
+.gemini-footer-row {
+    display: flex;
+    gap: 4px;
+    margin-top: 4px;
+}
+.gemini-footer-btn {
+    flex: 1;
+    padding: 5px 2px;
+    background: #f0f4f9;
+    border: 1px solid #d3e3fd;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 11px;
+    color: #0b57d0;
+    white-space: nowrap;
+}
+.gemini-footer-btn:last-child {
+    flex: 0 0 32px;
+}
+.gemini-footer-btn:hover {
+    background: #d3e3fd;
+}
+.dark-theme .gemini-footer-btn {
+    background: #282a2c;
+    border-color: #004a77;
+    color: #a8c7fa;
+}
+.dark-theme .gemini-footer-btn:hover {
+    background: #004a77;
+}
+
+/* ===== Markdownエディタ: テンプレートメニュー ===== */
+.gemini-md-template-wrap {
+    position: relative;
+    margin-left: auto;
+}
+.gemini-md-template-panel {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: calc(100% + 6px);
+    min-width: 240px;
+    max-height: 320px;
+    overflow-y: auto;
+    background: #1b1c1f;
+    border: 1px solid #33363d;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    z-index: 10;
+}
+.gemini-md-template-row {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #2d2e32;
+}
+.gemini-md-template-name {
+    flex: 1;
+    padding: 8px 12px;
+    font-size: 13px;
+    color: #ddd;
+    cursor: pointer;
+}
+.gemini-md-template-name:hover {
+    background: #2a2c31;
+}
+.gemini-md-template-del {
+    padding: 8px 12px;
+    color: #888;
+    cursor: pointer;
+}
+.gemini-md-template-del:hover {
+    color: #f28b82;
+}
+.gemini-md-template-add {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #8ab4f8;
+    cursor: pointer;
+}
+.gemini-md-template-add:hover {
+    background: #2a2c31;
+}
