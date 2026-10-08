@@ -12,7 +12,7 @@
 
     const LIST_LINK_SELECTOR = 'conversations-list a[href*="/app/"]';
     const FALLBACK_LINK_SELECTOR = 'side-navigation-content a[href*="/app/"], bard-sidenav a[href*="/app/"]';
-    const ROW_SELECTOR = '[data-test-id="conversation"], .conversation-items-container';
+    const ROW_SELECTOR = 'gem-nav-list-item[data-test-id="conversation"], [data-test-id="conversation"]';
 
     let junkPrefixes = DEFAULT_JUNK_PREFIXES;
     let state = { showJunk: false, category: null };
@@ -42,8 +42,10 @@
         let links = document.querySelectorAll(LIST_LINK_SELECTOR);
         if (links.length === 0) links = document.querySelectorAll(FALLBACK_LINK_SELECTOR);
         return Array.from(links).map(link => {
-            const titleEl = link.querySelector('.conversation-title');
-            const title = (titleEl || link).textContent.replace(/\s+/g, ' ').trim();
+            // 実DOM: <a href="/app/…" aria-label="タイトル"><span class="title-text">タイトル</span></a>
+            const titleEl = link.querySelector('.title-text');
+            const title = (titleEl ? titleEl.textContent : (link.getAttribute('aria-label') || link.textContent))
+                .replace(/\s+/g, ' ').trim();
             return { row: link.closest(ROW_SELECTOR) || link, title };
         });
     }
