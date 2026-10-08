@@ -55,14 +55,12 @@ modular-zero-state .top-section-container,
     font-size: 12px;
 }
 
-/* ダークモード対応 */
 .dark-theme #gemini-prompt-sidebar {
     background: rgba(30, 31, 32, 0.92);
     border-color: #444746;
     color: #e3e3e3;
 }
 
-/* タブヘッダー */
 .gemini-sidebar-tabs {
     display: flex;
     align-items: center;
@@ -115,7 +113,6 @@ modular-zero-state .top-section-container,
     color: #c2e7ff;
 }
 
-/* 一覧表示用スクロール領域 */
 .gemini-sidebar-content {
     display: flex;
     flex-direction: column;
@@ -124,7 +121,6 @@ modular-zero-state .top-section-container,
     max-height: calc(100vh - 210px);
 }
 
-/* プロンプト・見出し共通アイテム */
 .gemini-prompt-item,
 .gemini-heading-item {
     padding: 6px 8px;
@@ -156,7 +152,6 @@ modular-zero-state .top-section-container,
     background: #004a77;
 }
 
-/* 見出しの段階的インデント (H1〜H6) */
 .gemini-heading-h1 { margin-left: 0px; font-weight: bold; }
 .gemini-heading-h2 { margin-left: 8px; }
 .gemini-heading-h3 { margin-left: 16px; font-size: 11px; }
@@ -164,7 +159,6 @@ modular-zero-state .top-section-container,
 .gemini-heading-h5 { margin-left: 30px; font-size: 10.5px; opacity: 0.75; }
 .gemini-heading-h6 { margin-left: 36px; font-size: 10.5px; opacity: 0.65; }
 
-/* 見出しへスクロールした際、上部固定ヘッダーで隠れないように余白を設定 */
 message-content h1, message-content h2, message-content h3, message-content h4, message-content h5, message-content h6,
 model-response h1, model-response h2, model-response h3, model-response h4, model-response h5, model-response h6,
 user-query, .user-query-container {
@@ -178,7 +172,6 @@ user-query, .user-query-container {
     font-size: 11px;
 }
 
-/* フッター（▼最下部ボタン） */
 .gemini-prompt-footer {
     padding-top: 6px;
     border-top: 1px solid #eee;
@@ -215,4 +208,257 @@ user-query, .user-query-container {
 
 .dark-theme .gemini-scroll-bottom-btn:hover {
     background: #004a77;
+}
+
+/* ==========================================================
+   3. 入力枠横の Markdown 起動ボタン (📝)
+========================================================== */
+#gemini-md-trigger-btn {
+    background: transparent;
+    border: none;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background 0.2s;
+    margin-left: 2px;
+    margin-right: 2px;
+    vertical-align: middle;
+}
+
+#gemini-md-trigger-btn:hover {
+    background: rgba(0, 0, 0, 0.08);
+}
+
+.dark-theme #gemini-md-trigger-btn:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* ==========================================================
+   4. Markdown モーダル (キャレットズレ完全防止レイアウト)
+========================================================== */
+#gemini-md-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    z-index: 100000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+}
+
+#gemini-md-modal {
+    width: 82vw;
+    height: 82vh;
+    background: #0e0e10;
+    color: #e3e3e3;
+    border-radius: 16px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid #2d2e32;
+}
+
+.gemini-md-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid #2d2e32;
+    background: #18191c;
+}
+
+.gemini-md-title {
+    font-size: 14px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ffffff;
+}
+
+.gemini-md-badge {
+    font-size: 10px;
+    background: #3b82f6;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: normal;
+}
+
+.gemini-md-close-btn {
+    background: transparent;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    color: #aaa;
+    padding: 2px 8px;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.gemini-md-close-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+/* ツールバー */
+.gemini-md-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 16px;
+    background: #141517;
+    border-bottom: 1px solid #2d2e32;
+    flex-wrap: wrap;
+}
+
+.gemini-md-tool-btn {
+    background: #222428;
+    border: 1px solid #33363d;
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: 12px;
+    font-weight: bold;
+    color: #ddd;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.gemini-md-tool-btn:hover {
+    background: #3b82f6;
+    border-color: #3b82f6;
+    color: #ffffff;
+}
+
+.gemini-md-tool-divider {
+    width: 1px;
+    height: 16px;
+    background: #33363d;
+    margin: 0 4px;
+}
+
+/* エディタ本体 (重ね合わせレイヤー構造) */
+.gemini-md-body {
+    flex: 1;
+    padding: 16px;
+    position: relative;
+    background: #09090a;
+}
+
+.gemini-md-editor-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+}
+
+/* ★ キャレットズレを完全防止するためにフォントサイズ・行高・パディングを完全一致指定 */
+.gemini-md-preview-layer,
+.gemini-md-textarea-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    padding: 16px !important;
+    margin: 0 !important;
+    border: 1px solid #2d2e32 !important;
+    border-radius: 8px !important;
+    font-family: Consolas, Monaco, "Courier New", monospace, sans-serif !important;
+    font-size: 15px !important;
+    font-weight: normal !important;
+    line-height: 1.7 !important;
+    letter-spacing: 0px !important;
+    white-space: pre-wrap !important;
+    word-wrap: break-word !important;
+    box-sizing: border-box !important;
+    overflow-y: auto;
+    tab-size: 2;
+}
+
+/* 背面レイヤー（カラーハイライト表示） */
+.gemini-md-preview-layer {
+    z-index: 1;
+    background: #09090a;
+    color: #d1d5db;
+    pointer-events: none;
+}
+
+/* 前面Textarea（透明化してテキスト入力・カーソル操作を担当） */
+.gemini-md-textarea-input {
+    z-index: 2;
+    background: transparent !important;
+    color: transparent !important;
+    caret-color: #60a5fa !important;
+    resize: none;
+    outline: none;
+}
+
+/* カラーシンタックスハイライト（フォントサイズ・太さは均一のままカラーと背景色・下線で装飾） */
+.md-hl-h1 { color: #60a5fa !important; border-bottom: 1px dashed #3b82f6; }
+.md-hl-h2 { color: #818cf8 !important; border-bottom: 1px dashed #6366f1; }
+.md-hl-h3 { color: #a78bfa !important; }
+.md-hl-bold { color: #f59e0b !important; background: rgba(245, 158, 11, 0.15); border-radius: 2px; }
+.md-hl-italic { color: #f472b6 !important; text-decoration: underline; }
+.md-hl-strike { color: #6b7280 !important; text-decoration: line-through; }
+.md-hl-bullet { color: #38bdf8 !important; }
+.md-hl-quote { color: #9ca3af !important; background: rgba(255, 255, 255, 0.05); }
+.md-hl-code-fence { color: #10b981 !important; }
+.md-hl-code-inline { color: #f59e0b !important; background: rgba(245, 158, 11, 0.15); padding: 1px 4px; border-radius: 3px; }
+
+/* フッター */
+.gemini-md-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-top: 1px solid #2d2e32;
+    background: #18191c;
+}
+
+.gemini-md-counter {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.gemini-md-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.gemini-md-btn-apply,
+.gemini-md-btn-send {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    border: none;
+    transition: background 0.2s, opacity 0.2s;
+}
+
+.gemini-md-btn-apply {
+    background: #25282c;
+    color: #60a5fa;
+    border: 1px solid #3b82f6;
+}
+
+.gemini-md-btn-apply:hover {
+    background: #1e3a8a;
+    color: #ffffff;
+}
+
+.gemini-md-btn-send {
+    background: #2563eb;
+    color: #ffffff;
+}
+
+.gemini-md-btn-send:hover {
+    background: #1d4ed8;
 }

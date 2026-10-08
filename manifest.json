@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Gemini Custom Layout & Keybinds",
-  "version": "1.1",
-  "description": "Geminiの入力サイズ変更、Enterキー挙動変更、プロンプト・見出し目次、コード保存指定機能を提供します。",
+  "version": "1.2",
+  "description": "Geminiの入力サイズ変更、Enterキー挙動変更、プロンプト・見出し目次、コード保存指定、モーダル型Markdownエディタ機能を提供します。",
   "permissions": [
     "downloads"
   ],
