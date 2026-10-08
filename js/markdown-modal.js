@@ -153,6 +153,15 @@
             });
 
             textarea.addEventListener('keydown', (e) => {
+                // IME変換中は独自処理をしない
+                if (e.isComposing || e.keyCode === 229) return;
+
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    applyMarkdownToGemini(true);
+                    return;
+                }
+
                 if (e.key === 'Escape') {
                     e.stopPropagation();
                     return;
@@ -165,15 +174,10 @@
                     const val = textarea.value;
 
                     if (!e.shiftKey) {
-                        textarea.value = val.substring(0, start) + '  ' + val.substring(end);
-                        textarea.selectionStart = textarea.selectionEnd = start + 2;
-                    } else {
-                        if (val.substring(start - 2, start) === '  ') {
-                            textarea.value = val.substring(0, start - 2) + val.substring(start);
-                            textarea.selectionStart = textarea.selectionEnd = start - 2;
-                        }
+                        replaceRange(textarea, start, end, '  ');
+                    } else if (val.substring(start - 2, start) === '  ') {
+                        replaceRange(textarea, start - 2, start, '');
                     }
-                    syncTextToHighlight();
                     return;
                 }
 
@@ -193,14 +197,10 @@
                         const content = bulletMatch[3].trim();
 
                         if (content === '') {
-                            textarea.value = val.substring(0, lineStart) + val.substring(start);
-                            textarea.selectionStart = textarea.selectionEnd = lineStart;
+                            replaceRange(textarea, lineStart, start, '');
                         } else {
-                            const insertText = `\n${indent}${symbol} `;
-                            textarea.value = val.substring(0, start) + insertText + val.substring(start);
-                            textarea.selectionStart = textarea.selectionEnd = start + insertText.length;
+                            replaceRange(textarea, start, start, `\n${indent}${symbol} `);
                         }
-                        syncTextToHighlight();
                         return;
                     } else if (numMatch) {
                         e.preventDefault();
@@ -209,14 +209,10 @@
                         const content = numMatch[3].trim();
 
                         if (content === '') {
-                            textarea.value = val.substring(0, lineStart) + val.substring(start);
-                            textarea.selectionStart = textarea.selectionEnd = lineStart;
+                            replaceRange(textarea, lineStart, start, '');
                         } else {
-                            const insertText = `\n${indent}${num + 1}. `;
-                            textarea.value = val.substring(0, start) + insertText + val.substring(start);
-                            textarea.selectionStart = textarea.selectionEnd = start + insertText.length;
+                            replaceRange(textarea, start, start, `\n${indent}${num + 1}. `);
                         }
-                        syncTextToHighlight();
                         return;
                     }
                 }
@@ -271,7 +267,28 @@
         return overlay;
     }
 
+    // 範囲を置換する。execCommand経由にしてブラウザのUndo履歴を保つ
+    function replaceRange(textarea, start, end, text, selStart, selEnd) {
+        textarea.focus();
+        textarea.setSelectionRange(start, end);
+        if (!document.execCommand('insertText', false, text)) {
+            textarea.setRangeText(text, start, end, 'end');
+        }
+        const pos = start + text.length;
+        textarea.setSelectionRange(selStart ?? pos, selEnd ?? pos);
+        syncTextToHighlight();
+    }
+
+    let syncFrame = 0;
     function syncTextToHighlight() {
+        if (syncFrame) return;
+        syncFrame = requestAnimationFrame(() => {
+            syncFrame = 0;
+            doSyncTextToHighlight();
+        });
+    }
+
+    function doSyncTextToHighlight() {
         const textarea = document.getElementById('gemini-md-textarea-input');
         const previewLayer = document.getElementById('gemini-md-preview-layer');
         const counter = document.getElementById('gemini-md-counter-text');
@@ -295,17 +312,12 @@
 
         const replacement = selectedText ? (prefix + selectedText + suffix) : (prefix + defaultText + suffix);
 
-        textarea.value = text.substring(0, start) + replacement + text.substring(end);
-        textarea.focus();
-
         if (selectedText) {
-            textarea.selectionStart = start;
-            textarea.selectionEnd = start + replacement.length;
+            replaceRange(textarea, start, end, replacement, start, start + replacement.length);
         } else {
-            textarea.selectionStart = start + prefix.length;
-            textarea.selectionEnd = start + prefix.length + defaultText.length;
+            replaceRange(textarea, start, end, replacement,
+                start + prefix.length, start + prefix.length + defaultText.length);
         }
-        syncTextToHighlight();
     }
 
     function openMarkdownModal() {
@@ -314,7 +326,9 @@
 
         const geminiEditor = document.querySelector('rich-textarea .ql-editor');
         if (geminiEditor && textarea) {
-            textarea.value = geminiEditor.innerText.trim();
+            const current = geminiEditor.innerText.trim();
+            // Gemini側が空で、閉じる前の下書きがあれば復元する
+            textarea.value = current || draft;
         }
 
         overlay.style.display = 'flex';
@@ -324,7 +338,11 @@
         }
     }
 
+    let draft = '';
+
     function closeMarkdownModal() {
+        const textarea = document.getElementById('gemini-md-textarea-input');
+        if (textarea) draft = textarea.value;
         const overlay = document.getElementById('gemini-md-modal-overlay');
         if (overlay) {
             overlay.style.display = 'none';
@@ -356,6 +374,7 @@
             geminiEditor.dispatchEvent(new Event('change', { bubbles: true }));
 
             closeMarkdownModal();
+            draft = '';
 
             if (shouldSend) {
                 setTimeout(() => {
@@ -389,8 +408,15 @@
         anchor.parentNode.insertBefore(btn, anchor.nextSibling);
     }
 
+    // DOM変更のたびに走らないよう、フレームごとに1回へまとめる
+    let injectScheduled = false;
     const observer = new MutationObserver(() => {
-        injectMarkdownButton();
+        if (injectScheduled || document.getElementById('gemini-md-trigger-btn')) return;
+        injectScheduled = true;
+        requestAnimationFrame(() => {
+            injectScheduled = false;
+            injectMarkdownButton();
+        });
     });
 
     observer.observe(document.body, { childList: true, subtree: true });

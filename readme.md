@@ -14,6 +14,8 @@ Google Gemini（https://gemini.google.com/app）の操作性・可読性・長�
 ### 2. Enter と Ctrl+Enter のキーバインド反転
 - **Enter キー**: メッセージを送信せず、エディタ内で改行を挿入。
 - **Ctrl + Enter**（Mac の場合は **Cmd + Enter**）: メッセージを即座に送信。
+- 日本語 IME の変換確定の Enter は従来通り動作します。
+- Markdown エディタ内でも Ctrl/Cmd + Enter で「反映してそのまま送信」できます。
 
 ### 3. 📝 多機能 Markdown エディタ（WYSIWYG Hybrid / リアルタイム構文カラー）
 入力フォーム左側の「＋」アイコン横にある **📝** ボタンを押すことで、全画面 82% サイズの専用エディタモーダルを起動できます。長文プロンプトや構造化された指示文の推敲に最適です。
@@ -61,8 +63,12 @@ gemini-custom-extension/
 ├── manifest.json   # 拡張機能の設定ファイル (Manifest V3 / downloads権限含む)
 ├── background.js   # 「名前を付けて保存」ダイアログ制御用 Service Worker
 ├── content.css     # レイアウト、サイドバー、Markdownエディタ用 CSS
-├── content.js      # キーバインド、目次抽出、Markdownエディタ同期用 JS
-└── README.md       # 本ドキュメント
+├── js/
+│   ├── keybinds.js        # Enter / Ctrl+Enter のキーバインド反転
+│   ├── downloader.js      # コード保存時の「名前を付けて保存」強制
+│   ├── markdown-modal.js  # Markdownエディタ
+│   └── sidebar.js         # プロンプト・見出し目次サイドバー
+└── readme.md       # 本ドキュメント
 ```
 
 ---

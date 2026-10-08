@@ -235,16 +235,29 @@
     let updateTimer = null;
     function debouncedUpdate() {
         if (updateTimer) clearTimeout(updateTimer);
-        updateTimer = setTimeout(renderSidebarContent, 300);
+        updateTimer = setTimeout(() => {
+            updateTimer = null;
+            renderSidebarContent();
+        }, 500);
     }
 
+    // コールバック内は軽い判定だけにして、実際の再描画はデバウンスに任せる
     const observer = new MutationObserver((mutations) => {
-        const isOnlySidebarChange = mutations.every(m => m.target.closest('#gemini-prompt-sidebar, #gemini-md-modal-overlay'));
-        if (isOnlySidebarChange) return;
+        if (document.hidden) return;
+
+        // Markdownエディタ操作中（入力のたびにDOMが変わる）は更新しない
+        const modal = document.getElementById('gemini-md-modal-overlay');
+        if (modal && modal.style.display === 'flex') return;
+
+        const sidebar = document.getElementById('gemini-prompt-sidebar');
+        if (sidebar && mutations.every(m => sidebar.contains(m.target))) return;
 
         debouncedUpdate();
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) debouncedUpdate();
+    });
     setTimeout(renderSidebarContent, 1000);
 })();
