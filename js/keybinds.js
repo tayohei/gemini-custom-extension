@@ -12,6 +12,9 @@
             return;
         }
 
+        // IME変換中のEnter（変換確定）は横取りしない
+        if (e.isComposing || e.keyCode === 229) return;
+
         if (e.key === 'Enter') {
             if (e.ctrlKey || e.metaKey) {
                 e.preventDefault();

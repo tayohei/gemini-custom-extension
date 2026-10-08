@@ -153,6 +153,15 @@
             });
 
             textarea.addEventListener('keydown', (e) => {
+                // IME変換中は独自処理をしない
+                if (e.isComposing || e.keyCode === 229) return;
+
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    applyMarkdownToGemini(true);
+                    return;
+                }
+
                 if (e.key === 'Escape') {
                     e.stopPropagation();
                     return;
