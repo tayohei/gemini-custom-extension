@@ -582,3 +582,72 @@ user-query, .user-query-container {
 .gemini-md-template-add:hover {
     background: #2a2c31;
 }
+
+/* ===== 左サイドバー: チャット履歴の絞り込み ===== */
+[data-gx-hide="1"] {
+    display: none !important;
+}
+[data-gx-junk="1"] {
+    opacity: 0.5;
+}
+[data-gx-cat="1"] {
+    box-shadow: inset 3px 0 0 hsl(var(--gx-hue, 210), 65%, 55%);
+}
+#gemini-chat-filter {
+    padding: 4px 12px 8px;
+}
+#gemini-chat-filter .gx-input-row {
+    display: flex;
+    gap: 4px;
+}
+#gemini-chat-filter .gx-search {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 10px;
+    font-size: 13px;
+    border: 1px solid #c4c7c5;
+    border-radius: 16px;
+    background: transparent;
+    color: inherit;
+    outline: none;
+}
+#gemini-chat-filter .gx-search:focus {
+    border-color: #0b57d0;
+}
+#gemini-chat-filter .gx-gear {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    color: inherit;
+    opacity: 0.6;
+}
+#gemini-chat-filter .gx-gear:hover {
+    opacity: 1;
+}
+#gemini-chat-filter .gx-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+}
+#gemini-chat-filter .gx-chip {
+    padding: 2px 8px;
+    font-size: 11px;
+    color: inherit;
+    background: transparent;
+    border: 1px solid hsl(var(--gx-hue, 210), 45%, 60%);
+    border-radius: 10px;
+    cursor: pointer;
+}
+#gemini-chat-filter .gx-chip:hover {
+    background: hsla(var(--gx-hue, 210), 60%, 55%, 0.15);
+}
+#gemini-chat-filter .gx-chip.active {
+    background: hsl(var(--gx-hue, 210), 60%, 45%);
+    border-color: transparent;
+    color: #fff;
+}
+#gemini-chat-filter .gx-junk-toggle {
+    border-style: dashed;
+    opacity: 0.8;
+}
