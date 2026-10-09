@@ -55,13 +55,49 @@
         return info.prefix ? title.slice(info.prefix.length).replace(/^[\s\u3000]+/, '') : title;
     };
 
-    ns.hueOfLabel = hueOf;
+    // Okabe-Ito カラーユニバーサルデザインパレット（黒を除く7色）。fg はその色を背景にしたときの文字色。
+    const OKABE_ITO = [
+        { color: '#E69F00', fg: '#000' }, // orange
+        { color: '#56B4E9', fg: '#000' }, // sky blue
+        { color: '#009E73', fg: '#fff' }, // bluish green
+        { color: '#F0E442', fg: '#000' }, // yellow
+        { color: '#0072B2', fg: '#fff' }, // blue
+        { color: '#D55E00', fg: '#fff' }, // vermillion
+        { color: '#CC79A7', fg: '#000' }  // reddish purple
+    ];
+    const JUNK_COLOR = { color: '#767676', fg: '#fff' };
+    const COLOR_KEY = 'chatLabelColors';
+    let colorMap = {};
 
-    function hueOf(text) {
-        let h = 0;
-        for (const ch of text) h = (h * 31 + ch.codePointAt(0)) % 360;
-        return h;
+    // カテゴリ→パレット番号を記憶して固定する。新しいカテゴリには「現在最も使われていない色」を割り当てる
+    function assignColors(categories) {
+        const usage = OKABE_ITO.map(() => 0);
+        categories.forEach(c => { if (colorMap[c] !== undefined) usage[colorMap[c]]++; });
+
+        let changed = false;
+        categories.forEach(c => {
+            if (colorMap[c] !== undefined) return;
+            const idx = usage.indexOf(Math.min(...usage));
+            colorMap[c] = idx;
+            usage[idx]++;
+            changed = true;
+        });
+        if (changed) ns.storageSet(COLOR_KEY, colorMap);
     }
+
+    function colorOf(category, junk) {
+        if (junk) return JUNK_COLOR;
+        const idx = colorMap[category];
+        return idx === undefined ? OKABE_ITO[0] : OKABE_ITO[idx];
+    }
+
+    function applyColor(el, entry) {
+        el.style.setProperty('--gx-color', entry.color);
+        el.style.setProperty('--gx-fg', entry.fg);
+    }
+
+    ns.colorOfLabel = colorOf;
+    ns.applyLabelColor = applyColor;
 
     function getRows() {
         let links = document.querySelectorAll(LIST_LINK_SELECTOR);
@@ -141,12 +177,12 @@
         lastBarKey = key;
 
         chipsEl.innerHTML = '';
-        const addChip = (label, value, count, hue) => {
+        const addChip = (label, value, count, entry) => {
             const chip = document.createElement('button');
             chip.type = 'button';
             chip.className = 'gx-chip' + (state.category === value ? ' active' : '');
             chip.textContent = `${label} ${count}`;
-            if (hue !== undefined) chip.style.setProperty('--gx-hue', hue);
+            if (entry) applyColor(chip, entry);
             chip.addEventListener('click', () => {
                 state.category = state.category === value ? null : value;
                 saveState();
@@ -160,7 +196,7 @@
             .sort((a, b) => counts[b] - counts[a])
             .forEach(cat => {
                 const label = cat === UNCATEGORIZED ? 'その他' : cat;
-                addChip(label, cat, counts[cat], cat === UNCATEGORIZED ? undefined : hueOf(cat));
+                addChip(label, cat, counts[cat], cat === UNCATEGORIZED ? undefined : colorOf(cat, false));
             });
 
         if (junkCount > 0) {
@@ -201,6 +237,11 @@
             }
         }
 
+        // 使用頻度の高いカテゴリから順に色を割り当てる（上位ほど色が被りにくい）
+        const freq = {};
+        infos.forEach(i => { if (i.category && !i.junk) freq[i.category] = (freq[i.category] || 0) + 1; });
+        assignColors(Object.keys(freq).sort((a, b) => freq[b] - freq[a]));
+
         rows.forEach(({ row, title }, idx) => {
             const info = infos[idx];
             const catKey = info.junk ? null : (info.category || UNCATEGORIZED);
@@ -222,8 +263,11 @@
 
             row.dataset.gxHide = hide ? '1' : '';
             row.dataset.gxJunk = info.junk ? '1' : '';
-            if (info.category) row.style.setProperty('--gx-hue', hueOf(info.category));
-            else row.style.removeProperty('--gx-hue');
+            if (info.category) applyColor(row, colorOf(info.category, info.junk));
+            else {
+                row.style.removeProperty('--gx-color');
+                row.style.removeProperty('--gx-fg');
+            }
             row.dataset.gxCat = info.category ? '1' : '';
         });
 
@@ -245,6 +289,7 @@
 
     (async function init() {
         junkPrefixes = await ns.storageGet(PREFIX_KEY, DEFAULT_JUNK_PREFIXES);
+        colorMap = await ns.storageGet(COLOR_KEY, {});
         state = Object.assign(state, await ns.storageGet(STATE_KEY, {}));
         observer.observe(document.body, { childList: true, subtree: true });
         setTimeout(apply, 1000);
