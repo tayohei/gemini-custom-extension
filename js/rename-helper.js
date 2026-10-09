@@ -58,9 +58,9 @@
     }
 
     function tryInject(dialog, attempt = 0) {
-        if (dialog.dataset.gxRename) return;
-
         const input = dialog.querySelector(INPUT_SELECTOR);
+        // 外側のdialog/overlay要素が複数ヒットしても1回だけ挿入するよう、入力欄側で重複を判定する
+        if (input && input.dataset.gxRename) return;
         const isRename = /名前を変更|Rename/i.test(dialog.textContent || '');
         if (!input || !isRename) {
             // 入力欄の描画待ち（最大 ~0.5秒）
@@ -68,9 +68,12 @@
             return;
         }
 
-        dialog.dataset.gxRename = '1';
+        input.dataset.gxRename = '1';
         const chips = buildChips(input);
-        const anchor = input.closest('mat-form-field, .mat-mdc-form-field') || input;
+        // 入力欄は横並び(flex)の行に入っているため、その行の外側（次の行）に挿入する
+        const anchor = input.closest('.title-input-row')
+            || input.closest('mat-form-field, .mat-mdc-form-field')
+            || input;
         anchor.insertAdjacentElement('afterend', chips);
     }
 
