@@ -34,13 +34,13 @@
             setInputValue(input, prefix ? prefix + rest : rest);
         };
 
-        const addChip = (text, prefix, hue, title) => {
+        const addChip = (text, prefix, entry, title) => {
             const chip = document.createElement('button');
             chip.type = 'button'; // ダイアログのsubmitにならないように
             chip.className = 'gx-chip';
             chip.textContent = text;
             if (title) chip.title = title;
-            if (hue !== undefined) chip.style.setProperty('--gx-hue', hue);
+            if (entry) ns.applyLabelColor(chip, entry);
             chip.addEventListener('click', e => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -50,7 +50,7 @@
         };
 
         const labels = ns.getLabelPrefixes ? ns.getLabelPrefixes() : [];
-        labels.forEach(l => addChip(l.prefix, l.prefix, ns.hueOfLabel(l.category), `${l.count}件で使用中`));
+        labels.forEach(l => addChip(l.prefix, l.prefix, ns.colorOfLabel(l.category, l.junk), `${l.count}件で使用中`));
         addChip('ラベルなし', '', undefined, 'ラベルを外す');
 
         box.appendChild(row);
