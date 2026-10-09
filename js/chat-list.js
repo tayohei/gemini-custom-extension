@@ -23,14 +23,39 @@
     function classify(title) {
         const t = title.trim();
         const junk = junkPrefixes.find(p => p && t.startsWith(p));
-        if (junk) return { category: junk.replace(/[_\s　]+$/, '') || '雑', junk: true };
+        if (junk) return { category: junk.replace(/[_\s　]+$/, '') || '雑', junk: true, prefix: junk };
 
         let m = t.match(/^[【\[［]([^】\]］]{1,20})[】\]］]/);
-        if (m) return { category: m[1].trim(), junk: false };
+        if (m) return { category: m[1].trim(), junk: false, prefix: m[0] };
         m = t.match(/^[■□●◆▼▲★]\s*([^\s　]{1,20})/);
-        if (m) return { category: m[1], junk: false };
+        if (m) return { category: m[1], junk: false, prefix: m[0] };
         return { category: null, junk: false };
     }
+
+    // 名前変更ダイアログ用: 現在の履歴から使われているラベル(接頭辞)を使用頻度順に返す
+    ns.getLabelPrefixes = function () {
+        const map = new Map();
+        getRows().forEach(({ title }) => {
+            const info = classify(title);
+            if (!info.prefix) return;
+            const entry = map.get(info.prefix) || { prefix: info.prefix, category: info.category, junk: info.junk, count: 0 };
+            entry.count++;
+            map.set(info.prefix, entry);
+        });
+        // 設定済みの「雑」接頭辞は、現在1件もなくても選べるようにする
+        junkPrefixes.forEach(p => {
+            if (p && !map.has(p)) map.set(p, { prefix: p, category: p.replace(/[_\s\u3000]+$/, '') || '雑', junk: true, count: 0 });
+        });
+        return Array.from(map.values()).sort((a, b) => b.count - a.count);
+    };
+
+    // タイトルから先頭のラベルを取り除く
+    ns.stripLabelPrefix = function (title) {
+        const info = classify(title);
+        return info.prefix ? title.slice(info.prefix.length).replace(/^[\s\u3000]+/, '') : title;
+    };
+
+    ns.hueOfLabel = hueOf;
 
     function hueOf(text) {
         let h = 0;

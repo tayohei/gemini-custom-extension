@@ -651,3 +651,30 @@ user-query, .user-query-container {
     border-style: dashed;
     opacity: 0.8;
 }
+
+/* ===== 名前変更ダイアログ: ラベル選択 ===== */
+.gx-rename-chips {
+    margin-top: 12px;
+}
+.gx-rename-label {
+    font-size: 12px;
+    opacity: 0.7;
+    margin-bottom: 6px;
+}
+.gx-rename-chips .gx-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.gx-rename-chips .gx-chip {
+    padding: 4px 10px;
+    font-size: 12px;
+    color: inherit;
+    background: transparent;
+    border: 1px solid hsl(var(--gx-hue, 210), 45%, 60%);
+    border-radius: 12px;
+    cursor: pointer;
+}
+.gx-rename-chips .gx-chip:hover {
+    background: hsla(var(--gx-hue, 210), 60%, 55%, 0.18);
+}
