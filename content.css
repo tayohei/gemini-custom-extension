@@ -762,3 +762,8 @@ chat-window user-query {
     min-width: 42px;
     font-size: 11px;
 }
+
+/* 幅の倍率: 印の付いた要素(元が max-width:px の列)だけを、元の幅×倍率に広げる */
+html[data-gx-wide] [data-gx-lim] {
+    max-width: min(calc(var(--gx-base) * var(--gx-width-factor, 1)), 100%) !important;
+}

@@ -3,8 +3,10 @@
 
     // 右下に「文字の大きさ」「幅」の操作パネルを表示し、回答表示エリアの見た目を調整する。
     // - 文字: 回答本文/プロンプトに CSS zoom を適用（レイアウトは同じ幅の中で再配置される）
-    // - 幅  : 回答を包む親要素のうち「max-width が px 指定のもの」を、実行時に探して倍率をかける
-    //         （Geminiのクラス名に依存しないため、画面構造が変わっても動きやすい）
+    // - 幅  : 回答本文(.markdown 直下の段落・見出し・リスト等)と質問(user-query)は、実測で
+    //         「max-width: 708px + 左右 margin:auto」の中央寄せの列になっている。
+    //         max-width が px で指定されている要素だけを実行時に見つけて印を付け、
+    //         CSS変数の倍率で上書きする（倍率の変更はCSS変数を1つ変えるだけで全要素に反映される）
 
     const ns = window.GeminiExt;
     const KEY = 'viewSettings';
@@ -12,7 +14,7 @@
     const WIDTH_STEPS = [0.7, 0.85, 1, 1.2, 1.4, 1.6, 1.8, 2, 2.5];
     const FONT_DEFAULT = FONT_STEPS.indexOf(1);
     const WIDTH_DEFAULT = WIDTH_STEPS.indexOf(1);
-    const MIN_TARGET_WIDTH = 400; // これより狭い要素（アイコン等）は対象外
+    const MIN_TARGET_WIDTH = 400; // これより狭い要素は対象外
 
     let state = { font: FONT_DEFAULT, width: WIDTH_DEFAULT };
     let fontLabel = null;
@@ -22,50 +24,42 @@
         document.documentElement.style.setProperty('--gx-font-zoom', FONT_STEPS[state.font]);
     }
 
-    // 回答/プロンプトとその祖先のうち、max-width が px 指定のものを集めて倍率を適用する
-    function applyWidth() {
-        const factor = WIDTH_STEPS[state.width];
-        const seeds = document.querySelectorAll('chat-window user-query, chat-window model-response');
-        const targets = new Set();
-        seeds.forEach(seed => {
-            for (let el = seed; el && el !== document.body && el.tagName !== 'CHAT-WINDOW'; el = el.parentElement) {
-                targets.add(el);
-            }
-        });
+    // 幅を制限している要素（max-width が px 指定）。回答本文の直下の要素と、質問そのもの
+    const WIDTH_TARGETS = 'chat-window .markdown > *, chat-window user-query';
 
-        // 1) 以前の上書きだけを元に戻して元の max-width を読み、2) まとめて書き込む（レイアウト計算を最小限にする）
-        const list = Array.from(targets);
-        list.forEach(restoreMaxWidth);
-        const originals = list.map(el => {
+    // 印(data-gx-lim)と元の max-width(--gx-base)を付ける。force=true で全要素を測り直す（画面幅の変更時）
+    function markWidthTargets(force) {
+        const targets = [];
+        document.querySelectorAll(WIDTH_TARGETS).forEach(el => {
+            if (force || !el.dataset.gxChecked) targets.push(el);
+        });
+        if (targets.length === 0) return;
+
+        // 自分たちの上書きを外した状態の値を読む（まとめて読んでから書く）
+        if (force) targets.forEach(el => el.removeAttribute('data-gx-lim'));
+        const widths = targets.map(el => {
             const mw = getComputedStyle(el).maxWidth;
             return mw.endsWith('px') ? parseFloat(mw) : 0;
         });
-        if (factor !== 1) {
-            list.forEach((el, i) => {
-                if (originals[i] >= MIN_TARGET_WIDTH) {
-                    overrideMaxWidth(el, `min(${Math.round(originals[i] * factor)}px, 100%)`);
-                }
-            });
-        }
+        targets.forEach((el, i) => {
+            el.dataset.gxChecked = '1';
+            if (widths[i] >= MIN_TARGET_WIDTH) {
+                el.dataset.gxLim = '1';
+                el.style.setProperty('--gx-base', widths[i] + 'px');
+            } else {
+                el.removeAttribute('data-gx-lim');
+                el.style.removeProperty('--gx-base');
+            }
+        });
     }
 
-    // 要素にもともとあったインライン max-width を壊さないよう、上書き前の値を記録して復元する
-    function overrideMaxWidth(el, value) {
-        if (!el.dataset.gxOver) {
-            el.dataset.gxOver = '1';
-            el.dataset.gxInline = el.style.getPropertyValue('max-width');
-            el.dataset.gxInlinePrio = el.style.getPropertyPriority('max-width');
-        }
-        el.style.setProperty('max-width', value, 'important');
-    }
-
-    function restoreMaxWidth(el) {
-        if (!el.dataset.gxOver) return;
-        if (el.dataset.gxInline) el.style.setProperty('max-width', el.dataset.gxInline, el.dataset.gxInlinePrio);
-        else el.style.removeProperty('max-width');
-        delete el.dataset.gxOver;
-        delete el.dataset.gxInline;
-        delete el.dataset.gxInlinePrio;
+    function applyWidth() {
+        const factor = WIDTH_STEPS[state.width];
+        const root = document.documentElement;
+        root.style.setProperty('--gx-width-factor', factor);
+        if (factor === 1) root.removeAttribute('data-gx-wide');
+        else root.setAttribute('data-gx-wide', '1');
+        markWidthTargets(false);
     }
 
     function updateLabels() {
@@ -126,19 +120,24 @@
         updateLabels();
     }
 
-    // 幅の調整中は、新しい回答が追加されたり画面サイズが変わったときに再適用する
-    let timer = null;
-    function scheduleWidth() {
-        if (state.width === WIDTH_DEFAULT) return;
-        clearTimeout(timer);
-        timer = setTimeout(applyWidth, 800);
+    // 新しい回答の段落は、追加されたらすぐ印を付ける（生成中でも短い待ちで反映）
+    let markTimer = null;
+    function scheduleMark() {
+        clearTimeout(markTimer);
+        markTimer = setTimeout(() => markWidthTargets(false), 150);
+    }
+
+    let resizeTimer = null;
+    function scheduleRemeasure() {
+        clearTimeout(resizeTimer);
+        resizeTimer = setTimeout(() => markWidthTargets(true), 400);
     }
 
     const observer = new MutationObserver(mutations => {
-        if (document.hidden || state.width === WIDTH_DEFAULT) return;
+        if (document.hidden) return;
         const panel = document.getElementById('gemini-view-controls');
         if (panel && mutations.every(m => panel.contains(m.target))) return;
-        scheduleWidth();
+        scheduleMark();
     });
 
     (async function init() {
@@ -149,7 +148,7 @@
         applyFont();
         applyWidth();
         observer.observe(document.body, { childList: true, subtree: true });
-        window.addEventListener('resize', scheduleWidth);
-        setTimeout(applyWidth, 1500); // 初回描画後にもう一度
+        window.addEventListener('resize', scheduleRemeasure);
+        setTimeout(() => markWidthTargets(true), 1500); // 初回描画後に測り直す
     })();
 })();
