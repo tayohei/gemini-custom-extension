@@ -704,3 +704,61 @@ message-content h4 {
 .dark-theme message-content h4 {
     background: hsla(214, 80%, 60%, 0.11);
 }
+
+/* ===== 右下: 文字サイズ・幅の操作パネル ===== */
+message-content,
+chat-window user-query {
+    zoom: var(--gx-font-zoom, 1);
+}
+#gemini-view-controls {
+    position: fixed;
+    right: 12px;
+    bottom: 12px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 5px 6px;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid #d3d6da;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    font-size: 11px;
+    opacity: 0.55;
+    transition: opacity 0.2s;
+}
+#gemini-view-controls:hover {
+    opacity: 1;
+}
+.dark-theme #gemini-view-controls {
+    background: rgba(40, 42, 44, 0.92);
+    border-color: #4a4d51;
+    color: #e3e3e3;
+}
+#gemini-view-controls .gx-view-row {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+#gemini-view-controls .gx-view-name {
+    width: 26px;
+    opacity: 0.75;
+}
+#gemini-view-controls .gx-view-btn {
+    min-width: 24px;
+    height: 22px;
+    padding: 0 5px;
+    font-size: 12px;
+    color: inherit;
+    background: transparent;
+    border: 1px solid #c4c7c5;
+    border-radius: 6px;
+    cursor: pointer;
+}
+#gemini-view-controls .gx-view-btn:hover {
+    background: rgba(11, 87, 208, 0.12);
+}
+#gemini-view-controls .gx-view-reset {
+    min-width: 42px;
+    font-size: 11px;
+}
