@@ -832,3 +832,13 @@ html[data-gx-lh] chat-window .markdown blockquote { line-height: calc(var(--gx-l
 .dark-theme #gemini-prompt-sidebar::before {
     color: #c4c7c5;
 }
+
+/* ===== 回答本文の見出し(H1〜H6)を太字(Bold)にする ===== */
+message-content h1,
+message-content h2,
+message-content h3,
+message-content h4,
+message-content h5,
+message-content h6 {
+    font-weight: 700 !important;
+}
