@@ -10,21 +10,27 @@
 
     const ns = window.GeminiExt;
     const KEY = 'viewSettings';
-    const FONT_STEPS = [0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.35, 1.5, 1.7, 2];
-    const WIDTH_STEPS = [0.7, 0.85, 1, 1.2, 1.4, 1.6, 1.8, 2, 2.5];
-    const FONT_DEFAULT = FONT_STEPS.indexOf(1);
-    const LINE_STEPS = [0.8, 0.9, 1, 1.1, 1.2, 1.35, 1.5, 1.7];
-    const WIDTH_DEFAULT = WIDTH_STEPS.indexOf(1);
-    const LINE_DEFAULT = LINE_STEPS.indexOf(1);
+    // 各項目の設定値は「パーセント」で持つ。刻み(step)と範囲(min/max)はここで決める
+    const LIMITS = {
+        font: { min: 70, max: 200, step: 5 },
+        width: { min: 70, max: 250, step: 5 },
+        line: { min: 80, max: 170, step: 10 }
+    };
+    // 旧バージョンは「段階の番号」で保存していたため、読み込み時にパーセントへ変換する
+    const LEGACY_STEPS = {
+        font: [70, 80, 90, 100, 110, 120, 135, 150, 170, 200],
+        width: [70, 85, 100, 120, 140, 160, 180, 200, 250],
+        line: [80, 90, 100, 110, 120, 135, 150, 170]
+    };
     const MIN_TARGET_WIDTH = 400; // これより狭い要素は対象外
 
-    let state = { font: FONT_DEFAULT, width: WIDTH_DEFAULT, line: LINE_DEFAULT };
+    let state = { font: 100, width: 100, line: 100 };
     let fontLabel = null;
     let widthLabel = null;
     let lineLabel = null;
 
     function applyFont() {
-        document.documentElement.style.setProperty('--gx-font-zoom', FONT_STEPS[state.font]);
+        document.documentElement.style.setProperty('--gx-font-zoom', (state.font / 100));
         updateWidthRule();
     }
 
@@ -33,8 +39,8 @@
     // 文字・幅のどちらかが 100% でなければルールを有効にする。
     function updateWidthRule() {
         const root = document.documentElement;
-        root.style.setProperty('--gx-width-factor', WIDTH_STEPS[state.width]);
-        const active = state.width !== WIDTH_DEFAULT || state.font !== FONT_DEFAULT;
+        root.style.setProperty('--gx-width-factor', (state.width / 100));
+        const active = state.width !== 100 || state.font !== 100;
         if (active) root.setAttribute('data-gx-wide', '1');
         else root.removeAttribute('data-gx-wide');
     }
@@ -92,8 +98,8 @@
 
     function applyLine() {
         const root = document.documentElement;
-        root.style.setProperty('--gx-lh-factor', LINE_STEPS[state.line]);
-        if (state.line === LINE_DEFAULT) {
+        root.style.setProperty('--gx-lh-factor', (state.line / 100));
+        if (state.line === 100) {
             root.removeAttribute('data-gx-lh');
         } else {
             measureLineHeights();
@@ -102,19 +108,18 @@
     }
 
     function updateLabels() {
-        if (fontLabel) fontLabel.textContent = Math.round(FONT_STEPS[state.font] * 100) + '%';
-        if (widthLabel) widthLabel.textContent = Math.round(WIDTH_STEPS[state.width] * 100) + '%';
-        if (lineLabel) lineLabel.textContent = Math.round(LINE_STEPS[state.line] * 100) + '%';
+        if (fontLabel) fontLabel.textContent = state.font + '%';
+        if (widthLabel) widthLabel.textContent = state.width + '%';
+        if (lineLabel) lineLabel.textContent = state.line + '%';
     }
 
     function save() {
-        ns.storageSet(KEY, state);
+        ns.storageSet(KEY, { fontPct: state.font, widthPct: state.width, linePct: state.line });
     }
 
     function change(kind, delta) {
-        const steps = { font: FONT_STEPS, width: WIDTH_STEPS, line: LINE_STEPS }[kind];
-        const def = { font: FONT_DEFAULT, width: WIDTH_DEFAULT, line: LINE_DEFAULT }[kind];
-        state[kind] = delta === 0 ? def : Math.min(steps.length - 1, Math.max(0, state[kind] + delta));
+        const { min, max, step } = LIMITS[kind];
+        state[kind] = delta === 0 ? 100 : Math.min(max, Math.max(min, state[kind] + delta * step));
         if (kind === 'font') applyFont();
         else if (kind === 'width') applyWidth();
         else applyLine();
@@ -188,9 +193,13 @@
 
     (async function init() {
         const saved = await ns.storageGet(KEY, {});
-        state.font = Number.isInteger(saved.font) && FONT_STEPS[saved.font] ? saved.font : FONT_DEFAULT;
-        state.width = Number.isInteger(saved.width) && WIDTH_STEPS[saved.width] ? saved.width : WIDTH_DEFAULT;
-        state.line = Number.isInteger(saved.line) && LINE_STEPS[saved.line] ? saved.line : LINE_DEFAULT;
+        ['font', 'width', 'line'].forEach(kind => {
+            const { min, max } = LIMITS[kind];
+            let pct = 100;
+            if (Number.isFinite(saved[kind + 'Pct'])) pct = saved[kind + 'Pct'];
+            else if (Number.isInteger(saved[kind]) && LEGACY_STEPS[kind][saved[kind]]) pct = LEGACY_STEPS[kind][saved[kind]];
+            state[kind] = Math.min(max, Math.max(min, Math.round(pct)));
+        });
         createPanel();
         applyFont();
         applyWidth();
