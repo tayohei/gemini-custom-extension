@@ -765,5 +765,18 @@ chat-window user-query {
 
 /* 幅の倍率: 印の付いた要素(元が max-width:px の列)だけを、元の幅×倍率に広げる */
 html[data-gx-wide] [data-gx-lim] {
-    max-width: min(calc(var(--gx-base) * var(--gx-width-factor, 1)), 100%) !important;
+    max-width: min(calc(var(--gx-base) * var(--gx-width-factor, 1) / var(--gx-font-zoom, 1)), 100%) !important;
 }
+
+/* 行間: 要素種別ごとに実測した元の行間(--gx-lh-*) × 倍率 */
+html[data-gx-lh] chat-window .markdown p { line-height: calc(var(--gx-lh-p, 1.7) * var(--gx-lh-factor, 1)) !important; }
+html[data-gx-lh] chat-window .markdown li { line-height: calc(var(--gx-lh-li, 1.7) * var(--gx-lh-factor, 1)) !important; }
+html[data-gx-lh] chat-window .markdown h1 { line-height: calc(var(--gx-lh-h1, 1.4) * var(--gx-lh-factor, 1)) !important; }
+html[data-gx-lh] chat-window .markdown h2 { line-height: calc(var(--gx-lh-h2, 1.4) * var(--gx-lh-factor, 1)) !important; }
+html[data-gx-lh] chat-window .markdown h3 { line-height: calc(var(--gx-lh-h3, 1.4) * var(--gx-lh-factor, 1)) !important; }
+html[data-gx-lh] chat-window .markdown h4 { line-height: calc(var(--gx-lh-h4, 1.4) * var(--gx-lh-factor, 1)) !important; }
+html[data-gx-lh] chat-window .markdown h5 { line-height: calc(var(--gx-lh-h5, 1.4) * var(--gx-lh-factor, 1)) !important; }
+html[data-gx-lh] chat-window .markdown h6 { line-height: calc(var(--gx-lh-h6, 1.4) * var(--gx-lh-factor, 1)) !important; }
+html[data-gx-lh] chat-window .markdown td { line-height: calc(var(--gx-lh-td, 1.5) * var(--gx-lh-factor, 1)) !important; }
+html[data-gx-lh] chat-window .markdown th { line-height: calc(var(--gx-lh-th, 1.5) * var(--gx-lh-factor, 1)) !important; }
+html[data-gx-lh] chat-window .markdown blockquote { line-height: calc(var(--gx-lh-blockquote, 1.7) * var(--gx-lh-factor, 1)) !important; }

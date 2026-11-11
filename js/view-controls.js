@@ -13,15 +13,30 @@
     const FONT_STEPS = [0.7, 0.8, 0.9, 1, 1.1, 1.2, 1.35, 1.5, 1.7, 2];
     const WIDTH_STEPS = [0.7, 0.85, 1, 1.2, 1.4, 1.6, 1.8, 2, 2.5];
     const FONT_DEFAULT = FONT_STEPS.indexOf(1);
+    const LINE_STEPS = [0.8, 0.9, 1, 1.1, 1.2, 1.35, 1.5, 1.7];
     const WIDTH_DEFAULT = WIDTH_STEPS.indexOf(1);
+    const LINE_DEFAULT = LINE_STEPS.indexOf(1);
     const MIN_TARGET_WIDTH = 400; // これより狭い要素は対象外
 
-    let state = { font: FONT_DEFAULT, width: WIDTH_DEFAULT };
+    let state = { font: FONT_DEFAULT, width: WIDTH_DEFAULT, line: LINE_DEFAULT };
     let fontLabel = null;
     let widthLabel = null;
+    let lineLabel = null;
 
     function applyFont() {
         document.documentElement.style.setProperty('--gx-font-zoom', FONT_STEPS[state.font]);
+        updateWidthRule();
+    }
+
+    // 文字サイズ(zoom)を変えると max-width も一緒に拡大縮小されて見た目の幅が変わるため、
+    // CSS側で「元の幅 × 幅倍率 ÷ 文字倍率」にして見た目の幅を保つ。
+    // 文字・幅のどちらかが 100% でなければルールを有効にする。
+    function updateWidthRule() {
+        const root = document.documentElement;
+        root.style.setProperty('--gx-width-factor', WIDTH_STEPS[state.width]);
+        const active = state.width !== WIDTH_DEFAULT || state.font !== FONT_DEFAULT;
+        if (active) root.setAttribute('data-gx-wide', '1');
+        else root.removeAttribute('data-gx-wide');
     }
 
     // 幅を制限している要素（max-width が px 指定）。回答本文の直下の要素と、質問そのもの
@@ -54,17 +69,42 @@
     }
 
     function applyWidth() {
-        const factor = WIDTH_STEPS[state.width];
-        const root = document.documentElement;
-        root.style.setProperty('--gx-width-factor', factor);
-        if (factor === 1) root.removeAttribute('data-gx-wide');
-        else root.setAttribute('data-gx-wide', '1');
+        updateWidthRule();
         markWidthTargets(false);
+    }
+
+    // ---- 行間 ----
+    // Gemini の行間は要素ごとに異なる(本文/見出し等)ため、要素種別ごとに元の行間(倍率)を実測し、
+    // CSS変数 --gx-lh-<tag> に入れておき、CSS側で「元の行間 × 行間倍率」を適用する。
+    const LINE_TAGS = ['p', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'td', 'th', 'blockquote'];
+
+    function measureLineHeights() {
+        const root = document.documentElement;
+        root.removeAttribute('data-gx-lh'); // 自分たちの上書きを外した状態で測る
+        LINE_TAGS.forEach(tag => {
+            const el = document.querySelector(`chat-window .markdown ${tag}`);
+            if (!el) return;
+            const cs = getComputedStyle(el);
+            const ratio = parseFloat(cs.lineHeight) / parseFloat(cs.fontSize);
+            if (ratio > 0 && isFinite(ratio)) root.style.setProperty(`--gx-lh-${tag}`, ratio.toFixed(3));
+        });
+    }
+
+    function applyLine() {
+        const root = document.documentElement;
+        root.style.setProperty('--gx-lh-factor', LINE_STEPS[state.line]);
+        if (state.line === LINE_DEFAULT) {
+            root.removeAttribute('data-gx-lh');
+        } else {
+            measureLineHeights();
+            root.setAttribute('data-gx-lh', '1');
+        }
     }
 
     function updateLabels() {
         if (fontLabel) fontLabel.textContent = Math.round(FONT_STEPS[state.font] * 100) + '%';
         if (widthLabel) widthLabel.textContent = Math.round(WIDTH_STEPS[state.width] * 100) + '%';
+        if (lineLabel) lineLabel.textContent = Math.round(LINE_STEPS[state.line] * 100) + '%';
     }
 
     function save() {
@@ -72,11 +112,12 @@
     }
 
     function change(kind, delta) {
-        const steps = kind === 'font' ? FONT_STEPS : WIDTH_STEPS;
-        const def = kind === 'font' ? FONT_DEFAULT : WIDTH_DEFAULT;
+        const steps = { font: FONT_STEPS, width: WIDTH_STEPS, line: LINE_STEPS }[kind];
+        const def = { font: FONT_DEFAULT, width: WIDTH_DEFAULT, line: LINE_DEFAULT }[kind];
         state[kind] = delta === 0 ? def : Math.min(steps.length - 1, Math.max(0, state[kind] + delta));
         if (kind === 'font') applyFont();
-        else applyWidth();
+        else if (kind === 'width') applyWidth();
+        else applyLine();
         updateLabels();
         save();
     }
@@ -101,7 +142,8 @@
 
         const reset = mkBtn('100%', resetTip, () => change(kind, 0), 'gx-view-reset');
         if (kind === 'font') fontLabel = reset;
-        else widthLabel = reset;
+        else if (kind === 'width') widthLabel = reset;
+        else lineLabel = reset;
 
         row.appendChild(name);
         row.appendChild(mkBtn('−', minusTip, () => change(kind, -1)));
@@ -116,6 +158,7 @@
         panel.id = 'gemini-view-controls';
         panel.appendChild(makeRow('文字', 'font', '文字を小さく', '文字を大きく', '文字サイズをリセット'));
         panel.appendChild(makeRow('幅', 'width', '幅を狭く', '幅を広く', '幅をリセット'));
+        panel.appendChild(makeRow('行間', 'line', '行間を狭く', '行間を広く', '行間をリセット'));
         document.body.appendChild(panel);
         updateLabels();
     }
@@ -130,7 +173,10 @@
     let resizeTimer = null;
     function scheduleRemeasure() {
         clearTimeout(resizeTimer);
-        resizeTimer = setTimeout(() => markWidthTargets(true), 400);
+        resizeTimer = setTimeout(() => {
+            markWidthTargets(true);
+            applyLine();
+        }, 400);
     }
 
     const observer = new MutationObserver(mutations => {
@@ -144,11 +190,16 @@
         const saved = await ns.storageGet(KEY, {});
         state.font = Number.isInteger(saved.font) && FONT_STEPS[saved.font] ? saved.font : FONT_DEFAULT;
         state.width = Number.isInteger(saved.width) && WIDTH_STEPS[saved.width] ? saved.width : WIDTH_DEFAULT;
+        state.line = Number.isInteger(saved.line) && LINE_STEPS[saved.line] ? saved.line : LINE_DEFAULT;
         createPanel();
         applyFont();
         applyWidth();
+        applyLine();
         observer.observe(document.body, { childList: true, subtree: true });
         window.addEventListener('resize', scheduleRemeasure);
-        setTimeout(() => markWidthTargets(true), 1500); // 初回描画後に測り直す
+        setTimeout(() => {
+            markWidthTargets(true); // 初回描画後に測り直す
+            applyLine();
+        }, 1500);
     })();
 })();
