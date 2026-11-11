@@ -785,8 +785,8 @@ html[data-gx-lh] chat-window .markdown blockquote { line-height: calc(var(--gx-l
 #gemini-prompt-sidebar {
     /* 幅いっぱいを右へ送り、左端の24pxだけ画面内に残す（right:16px 分も加味） */
     transform: translateX(calc(100% + 16px - 24px));
-    /* 戻るときは少し待つ（カーソルがわずかに外れても閉じてしまわないように） */
-    transition: transform 0.2s ease 0.35s, box-shadow 0.2s;
+    /* 戻るときは3秒待つ（カーソルが外れてもすぐには閉じない） */
+    transition: transform 0.2s ease 3s, box-shadow 0.2s;
 }
 #gemini-prompt-sidebar:hover,
 #gemini-prompt-sidebar:focus-within {
@@ -795,7 +795,7 @@ html[data-gx-lh] chat-window .markdown blockquote { line-height: calc(var(--gx-l
 }
 /* 隠れている間は中身を見せず、縦書きの「目次」つまみだけ見せる */
 #gemini-prompt-sidebar > * {
-    transition: opacity 0.15s ease 0.35s;
+    transition: opacity 0.15s ease 3s;
 }
 #gemini-prompt-sidebar:not(:hover):not(:focus-within) > * {
     opacity: 0;
@@ -822,7 +822,7 @@ html[data-gx-lh] chat-window .markdown blockquote { line-height: calc(var(--gx-l
     color: #5f6368;
     pointer-events: none;
     opacity: 1;
-    transition: opacity 0.15s ease 0.35s;
+    transition: opacity 0.15s ease 3s;
 }
 #gemini-prompt-sidebar:hover::before,
 #gemini-prompt-sidebar:focus-within::before {
